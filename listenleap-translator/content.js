@@ -135,6 +135,9 @@
     const drawer = document.getElementById('ll-drawer');
     if (!drawer) return;
 
+    // 确保Drawer是打开的
+    drawer.classList.add('ll-drawer-open');
+
     drawer.querySelectorAll('.ll-drawer-tab').forEach(tab => {
       tab.classList.remove('ll-tab-active');
     });
