@@ -241,7 +241,6 @@
       let defsHtml = '';
       meaning.definitions.forEach((def, idx) => {
         const defId = `def-${mIdx}-${idx}`;
-        const hasChineseDef = !!def.chineseDefinition;
 
         defsHtml += `
           <div class="ll-definition">
@@ -250,7 +249,7 @@
               <span class="ll-def-pos">${meaning.partOfSpeech}</span>
               <span class="ll-def-text">${def.definition}</span>
             </div>
-            ${hasChineseDef ? `<div class="ll-def-chinese" id="${defId}-chinese">${def.chineseDefinition}</div>` : ''}
+            <div class="ll-def-chinese" id="${defId}-chinese" style="display: none;"></div>
             ${def.example ? `
               <div class="ll-example">
                 <div class="ll-example-en" id="${defId}-example">"${def.example}"</div>
@@ -271,7 +270,8 @@
           <span class="ll-word">${data.word}</span>
           <i class="far fa-heart ll-save-btn ${isWordSaved ? 'll-saved' : ''}" id="ll-save-btn"></i>
         </div>
-        <div class="ll-word-chinese" id="ll-word-chinese">
+        <div class="ll-word-english" id="ll-word-english">${data.word}</div>
+        <div class="ll-word-chinese" id="ll-word-chinese" style="display: none;">
           <i class="fas fa-spinner fa-spin"></i>
         </div>
         <div class="ll-phonetic">
@@ -317,48 +317,56 @@
   }
 
   async function loadChineseTranslation(data) {
-    // 加载单词中文翻译（简洁翻译）
+    // 添加延迟，让用户先看到英文内容
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 加载单词中文翻译
+    const englishEl = document.getElementById('ll-word-english');
     const chineseEl = document.getElementById('ll-word-chinese');
-    if (chineseEl) {
-      if (data.wordChinese) {
-        chineseEl.innerHTML = data.wordChinese;
-      } else {
-        try {
-          const response = await chrome.runtime.sendMessage({
-            action: 'translate',
-            text: data.word
-          });
-          if (response && response.translation && response.translation !== '翻译失败') {
-            chineseEl.innerHTML = response.translation;
-          } else {
-            chineseEl.innerHTML = '';
-          }
-        } catch (error) {
+    
+    if (englishEl && chineseEl) {
+      englishEl.style.display = 'none';
+      chineseEl.style.display = 'block';
+      
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'translate',
+          text: data.word
+        });
+        if (response && response.translation && response.translation !== '翻译失败') {
+          chineseEl.innerHTML = response.translation;
+        } else {
           chineseEl.innerHTML = '';
         }
+      } catch (error) {
+        chineseEl.innerHTML = '';
       }
     }
 
-    // 加载释义和例句的中文翻译
-    data.meanings.forEach((meaning, mIdx) => {
-      meaning.definitions.forEach(async (def, idx) => {
+    // 加载释义和例句的中文翻译（逐个异步加载）
+    for (const meaning of data.meanings) {
+      for (const def of meaning.definitions) {
+        const mIdx = data.meanings.indexOf(meaning);
+        const idx = meaning.definitions.indexOf(def);
         const defId = `def-${mIdx}-${idx}`;
-
+        
         // 加载释义中文
-        if (!def.chineseDefinition) {
-          try {
-            const defResponse = await chrome.runtime.sendMessage({
-              action: 'translate',
-              text: def.definition
-            });
-            if (defResponse && defResponse.translation && defResponse.translation !== '翻译失败') {
-              const chineseDefEl = document.getElementById(`${defId}-chinese`);
-              if (chineseDefEl) {
-                chineseDefEl.innerHTML = defResponse.translation;
-              }
+        try {
+          const defResponse = await chrome.runtime.sendMessage({
+            action: 'translate',
+            text: def.definition
+          });
+          if (defResponse && defResponse.translation && defResponse.translation !== '翻译失败') {
+            const chineseDefEl = document.getElementById(`${defId}-chinese`);
+            if (chineseDefEl) {
+              chineseDefEl.textContent = defResponse.translation;
+              chineseDefEl.style.display = 'block';
             }
-          } catch (error) { }
-        }
+          }
+        } catch (error) { }
+
+        // 添加延迟，避免请求过快
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         // 加载例句中文
         if (def.example) {
@@ -370,14 +378,17 @@
             if (exampleResponse && exampleResponse.translation && exampleResponse.translation !== '翻译失败') {
               const exampleZhEl = document.getElementById(`${defId}-example-zh`);
               if (exampleZhEl) {
-                exampleZhEl.innerHTML = exampleResponse.translation;
+                exampleZhEl.textContent = exampleResponse.translation;
                 exampleZhEl.style.display = 'block';
               }
             }
           } catch (error) { }
+          
+          // 添加延迟
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
-      });
-    });
+      }
+    }
   }
 
   function openDrawer() {

@@ -140,6 +140,13 @@
   color: #3478F6;
 }
 
+.ll-word-english {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 4px;
+  min-height: 20px;
+}
+
 .ll-save-btn {
   font-size: 20px;
   color: #ccc;
@@ -265,7 +272,7 @@
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 5px;
 }
 
 .ll-vocab-item:hover {
@@ -331,8 +338,8 @@
   border-radius: 4px;
   transition: all 0.2s;
   position: absolute;
-  right: 10px;
-  top: 10px;
+  right: 7px;
+  top: 7px;
 }
 
 .ll-vocab-delete:hover {
