@@ -161,7 +161,7 @@
       listEl.innerHTML = '<div class="ll-vocab-empty">暂无生词</div>';
       return;
     }
-
+    console.log('vocab', vocab);
     listEl.innerHTML = vocab.map((item, index) => `
       <div class="ll-vocab-item" data-word="${item.word}">
         <div class="ll-vocab-index">${index + 1}</div>
@@ -171,7 +171,7 @@
             <span class="ll-vocab-phonetic">${item.phonetic || ''}</span>
             <i class="fas fa-volume-up ll-vocab-audio" data-audio="${item.audio || ''}"></i>
           </div>
-          <div class="ll-vocab-def">${item.chineseDef || ''}</div>
+          <div class="ll-vocab-def">${item.wordChinese || ''}</div>
         </div>
         <i class="fas fa-trash-alt ll-vocab-delete" data-word="${item.word}"></i>
       </div>
@@ -242,7 +242,7 @@
       meaning.definitions.forEach((def, idx) => {
         const defId = `def-${mIdx}-${idx}`;
         const hasChineseDef = !!def.chineseDefinition;
-        
+
         defsHtml += `
           <div class="ll-definition">
             <div class="ll-def-row">
@@ -293,17 +293,13 @@
           isWordSaved = false;
           saveBtn.classList.remove('ll-saved');
         } else {
-          // 先翻译中文，再保存
-          const chineseDef = await chrome.runtime.sendMessage({
-            action: 'translate',
-            text: data.meanings?.[0]?.definitions?.[0]?.definition || data.word
-          });
-          
+          // 使用已经翻译好的简洁中文翻译
           const wordDataWithChinese = {
             ...data,
-            chineseDef: chineseDef.translation || ''
+            chineseDef: data.wordChinese || ''
           };
-          
+          console.log('wordDataWithChinese', wordDataWithChinese);
+
           await chrome.runtime.sendMessage({ action: 'addToVocabulary', wordData: wordDataWithChinese });
           isWordSaved = true;
           saveBtn.classList.add('ll-saved');
@@ -321,21 +317,25 @@
   }
 
   async function loadChineseTranslation(data) {
-    // 加载单词中文翻译
+    // 加载单词中文翻译（简洁翻译）
     const chineseEl = document.getElementById('ll-word-chinese');
     if (chineseEl) {
-      try {
-        const response = await chrome.runtime.sendMessage({
-          action: 'translate',
-          text: data.word
-        });
-        if (response && response.translation && response.translation !== '翻译失败') {
-          chineseEl.innerHTML = response.translation;
-        } else {
+      if (data.wordChinese) {
+        chineseEl.innerHTML = data.wordChinese;
+      } else {
+        try {
+          const response = await chrome.runtime.sendMessage({
+            action: 'translate',
+            text: data.word
+          });
+          if (response && response.translation && response.translation !== '翻译失败') {
+            chineseEl.innerHTML = response.translation;
+          } else {
+            chineseEl.innerHTML = '';
+          }
+        } catch (error) {
           chineseEl.innerHTML = '';
         }
-      } catch (error) {
-        chineseEl.innerHTML = '';
       }
     }
 
@@ -343,7 +343,7 @@
     data.meanings.forEach((meaning, mIdx) => {
       meaning.definitions.forEach(async (def, idx) => {
         const defId = `def-${mIdx}-${idx}`;
-        
+
         // 加载释义中文
         if (!def.chineseDefinition) {
           try {
@@ -357,7 +357,7 @@
                 chineseDefEl.innerHTML = defResponse.translation;
               }
             }
-          } catch (error) {}
+          } catch (error) { }
         }
 
         // 加载例句中文
@@ -374,7 +374,7 @@
                 exampleZhEl.style.display = 'block';
               }
             }
-          } catch (error) {}
+          } catch (error) { }
         }
       });
     });
@@ -398,7 +398,7 @@
       const target = e.target;
       const bTag = target.closest('b');
       const paragraph = target.closest('.paragraph');
-      
+
       console.log('[ListenLeap] 点击目标:', target.tagName, target.className);
 
       if (bTag && paragraph) {

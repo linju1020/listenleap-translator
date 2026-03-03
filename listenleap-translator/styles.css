@@ -246,6 +246,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding-right: 20px;
 }
 
 .ll-vocab-empty {

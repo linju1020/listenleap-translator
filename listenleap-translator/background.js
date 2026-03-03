@@ -21,7 +21,7 @@ async function translateText(text) {
   lastRequestTime = Date.now();
 
   const encodedText = encodeURIComponent(text);
-  
+
   const endpoints = [
     `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodedText}`,
     `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=zh-CN&q=${encodedText}`
@@ -41,15 +41,10 @@ async function translateText(text) {
       }
 
       const data = await response.json();
-      
-      if (data && data[0] && Array.isArray(data[0])) {
-        let translatedText = '';
-        for (const item of data[0]) {
-          if (item[0]) {
-            translatedText += item[0];
-          }
-        }
-        
+
+      if (data && data[0] && data[0][0] && data[0][0][0]) {
+        const translatedText = data[0][0][0];
+
         if (translatedText) {
           TRANSLATION_CACHE.set(cacheKey, translatedText);
           return translatedText;
@@ -91,41 +86,45 @@ async function lookupWord(word) {
     }
 
     const data = await response.json();
-    
+
     if (!Array.isArray(data) || data.length === 0) {
       return null;
     }
 
     const entry = data[0];
     const youdaoTtsUrl = getYoudaoTTSUrl(cleanWord);
-    
+
+    // 先翻译单词本身获取简洁的中文翻译
+    const wordChinese = await translateText(cleanWord);
+
     const result = {
       word: entry.word,
       phonetic: entry.phonetic || (entry.phonetics?.find(p => p.text)?.text) || '',
       audio: youdaoTtsUrl,
+      wordChinese: wordChinese || '',
       meanings: []
     };
 
     for (const meaning of entry.meanings || []) {
       const partOfSpeech = meaning.partOfSpeech;
       const definitions = [];
-      
+
       for (const def of meaning.definitions?.slice(0, 3) || []) {
         const defObj = {
           definition: def.definition,
           example: def.example || ''
         };
-        
+
         if (def.definition) {
           defObj.chineseDefinition = await translateText(def.definition);
         }
         if (def.example) {
           defObj.chineseExample = await translateText(def.example);
         }
-        
+
         definitions.push(defObj);
       }
-      
+
       if (definitions.length > 0) {
         result.meanings.push({
           partOfSpeech,
@@ -161,6 +160,7 @@ function addToVocabulary(wordData) {
 
       const entry = {
         word: wordData.word,
+        wordChinese: wordData.wordChinese || '',
         phonetic: wordData.phonetic || '',
         partOfSpeech: wordData.meanings?.[0]?.partOfSpeech || '',
         definition: wordData.meanings?.[0]?.definitions?.[0]?.definition || '',
