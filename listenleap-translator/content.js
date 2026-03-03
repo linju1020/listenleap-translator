@@ -293,7 +293,18 @@
           isWordSaved = false;
           saveBtn.classList.remove('ll-saved');
         } else {
-          await chrome.runtime.sendMessage({ action: 'addToVocabulary', wordData: data });
+          // 先翻译中文，再保存
+          const chineseDef = await chrome.runtime.sendMessage({
+            action: 'translate',
+            text: data.meanings?.[0]?.definitions?.[0]?.definition || data.word
+          });
+          
+          const wordDataWithChinese = {
+            ...data,
+            chineseDef: chineseDef.translation || ''
+          };
+          
+          await chrome.runtime.sendMessage({ action: 'addToVocabulary', wordData: wordDataWithChinese });
           isWordSaved = true;
           saveBtn.classList.add('ll-saved');
         }
