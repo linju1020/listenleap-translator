@@ -23,7 +23,7 @@
         text: text
       });
 
-      if (response && response.translation && response.translation !== '翻译失败') {
+      if (response && response.translation && response.translation !== '' && response.translation !== '翻译失败' && !response.error) {
         let translationDiv = paragraphElement.parentElement.querySelector('.chinese-translation');
 
         if (!translationDiv) {
@@ -33,6 +33,7 @@
         }
 
         translationDiv.textContent = response.translation;
+        translationDiv.classList.add('ll-fade-in');
         paragraphElement.setAttribute(TRANSLATION_ATTR, response.translation);
       }
     } catch (error) {
@@ -464,9 +465,11 @@
     });
   }
 
-  async function lookupAndShowWord(word) {
+  async function lookupAndShowWord(word, retryCount = 0) {
     const contentEl = document.getElementById('ll-dict-content');
     if (!contentEl) return;
+
+    const maxRetries = 2;
 
     contentEl.innerHTML = `
       <div class="ll-loading">
@@ -477,26 +480,45 @@
 
     switchTab('dict');
 
-    const response = await chrome.runtime.sendMessage({ action: 'lookupWord', word: word });
-    const result = response.result;
+    let response;
+    try {
+      response = await chrome.runtime.sendMessage({ action: 'lookupWord', word: word });
+    } catch (e) {
+      console.error('lookupWord error:', e);
+      response = { result: null, error: 'network_error' };
+    }
+    
+    if (response && response.error && response.error === 'network_error' && retryCount < maxRetries) {
+      setTimeout(() => lookupAndShowWord(word, retryCount + 1), 1000);
+      return;
+    }
 
-    if (!result) {
+    if (!response || !response.result) {
+      const isNetworkError = response && response.error === 'network_error';
       contentEl.innerHTML = `
         <div class="ll-error">
-          <i class="fas fa-exclamation-circle"></i>
-          <span>未找到该单词</span>
+          <i class="fas fa-${isNetworkError ? 'wifi' : 'exclamation-circle'}"></i>
+          <span>${isNetworkError ? '网络连接失败' : '未找到该单词'}</span>
+          ${isNetworkError ? `<button class="ll-retry-btn" data-retry-word="${word}">重新查询</button>` : ''}
         </div>
       `;
+      
+      if (isNetworkError) {
+        const retryBtn = contentEl.querySelector('.ll-retry-btn');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => lookupAndShowWord(retryBtn.dataset.retryWord));
+        }
+      }
       isWordSaved = false;
       return;
     }
 
-    currentWordData = result;
+    currentWordData = response.result;
 
     const checkResponse = await chrome.runtime.sendMessage({ action: 'checkInVocabulary', word: word });
     isWordSaved = checkResponse.exists;
 
-    renderDictionaryContent(result);
+    renderDictionaryContent(response.result);
   }
 
   function renderDictionaryContent(data) {
@@ -560,7 +582,6 @@
           isWordSaved = false;
           saveBtn.classList.remove('ll-saved');
         } else {
-          // 先翻译获取中文翻译
           const translateResponse = await chrome.runtime.sendMessage({
             action: 'translate',
             text: data.word
@@ -568,8 +589,8 @@
 
           const wordDataWithChinese = {
             ...data,
-            wordChinese: translateResponse.translation || '',
-            chineseDef: translateResponse.translation || ''
+            wordChinese: (translateResponse.translation && !translateResponse.error) ? translateResponse.translation : '',
+            chineseDef: (translateResponse.translation && !translateResponse.error) ? translateResponse.translation : ''
           };
 
           await chrome.runtime.sendMessage({ action: 'addToVocabulary', wordData: wordDataWithChinese });
@@ -605,11 +626,10 @@
     }
   }
 
-  async function loadChineseTranslation(data) {
-    // 添加延迟，让用户先看到英文内容
+async function loadChineseTranslation(data, retryCount = 0) {
+    const maxRetries = 2;
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // 加载单词中文翻译
     const englishEl = document.getElementById('ll-word-english');
     const chineseEl = document.getElementById('ll-word-chinese');
 
@@ -622,8 +642,12 @@
           action: 'translate',
           text: data.word
         });
-        if (response && response.translation && response.translation !== '翻译失败') {
+        
+        if (response && response.translation && response.translation !== '' && !response.error) {
           chineseEl.innerHTML = response.translation;
+          chineseEl.classList.add('ll-fade-in');
+        } else if (response.error === 'network_error' && retryCount < maxRetries) {
+          setTimeout(() => loadChineseTranslation(data, retryCount + 1), 1000);
         } else {
           chineseEl.innerHTML = '';
         }
@@ -632,48 +656,45 @@
       }
     }
 
-    // 加载释义和例句的中文翻译（逐个异步加载）
     for (const meaning of data.meanings) {
       for (const def of meaning.definitions) {
         const mIdx = data.meanings.indexOf(meaning);
         const idx = meaning.definitions.indexOf(def);
         const defId = `def-${mIdx}-${idx}`;
 
-        // 加载释义中文
         try {
           const defResponse = await chrome.runtime.sendMessage({
             action: 'translate',
             text: def.definition
           });
-          if (defResponse && defResponse.translation && defResponse.translation !== '翻译失败') {
+          if (defResponse && defResponse.translation && defResponse.translation !== '' && !defResponse.error) {
             const chineseDefEl = document.getElementById(`${defId}-chinese`);
             if (chineseDefEl) {
               chineseDefEl.textContent = defResponse.translation;
               chineseDefEl.style.display = 'block';
+              chineseDefEl.classList.add('ll-fade-in');
             }
           }
         } catch (error) { }
 
-        // 添加延迟，避免请求过快
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // 加载例句中文
         if (def.example) {
           try {
             const exampleResponse = await chrome.runtime.sendMessage({
               action: 'translate',
               text: def.example
             });
-            if (exampleResponse && exampleResponse.translation && exampleResponse.translation !== '翻译失败') {
+            if (exampleResponse && exampleResponse.translation && exampleResponse.translation !== '' && !exampleResponse.error) {
               const exampleZhEl = document.getElementById(`${defId}-example-zh`);
               if (exampleZhEl) {
                 exampleZhEl.textContent = exampleResponse.translation;
                 exampleZhEl.style.display = 'block';
+                exampleZhEl.classList.add('ll-fade-in');
               }
             }
           } catch (error) { }
 
-          // 添加延迟
           await new Promise(resolve => setTimeout(resolve, 300));
         }
       }

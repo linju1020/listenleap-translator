@@ -1,16 +1,57 @@
-const TRANSLATION_CACHE = new Map();
-const DICTIONARY_CACHE = new Map();
+const TRANSLATION_CACHE_KEY = 'translationCache';
+const DICTIONARY_CACHE_KEY = 'dictionaryCache';
 const REQUEST_DELAY = 300;
 let lastRequestTime = 0;
+let translationCache = {};
+let dictionaryCache = {};
+let cacheLoaded = false;
+
+function loadCaches() {
+  return new Promise((resolve) => {
+    if (cacheLoaded) {
+      resolve();
+      return;
+    }
+    chrome.storage.local.get([TRANSLATION_CACHE_KEY, DICTIONARY_CACHE_KEY], (result) => {
+      translationCache = result[TRANSLATION_CACHE_KEY] || {};
+      dictionaryCache = result[DICTIONARY_CACHE_KEY] || {};
+      cacheLoaded = true;
+      console.log('[ListenLeap] 缓存已加载:', Object.keys(translationCache).length, '翻译,', Object.keys(dictionaryCache).length, '词典');
+      resolve();
+    });
+  });
+}
+
+function saveTranslationCache(key, value) {
+  translationCache[key] = value;
+  chrome.storage.local.set({ [TRANSLATION_CACHE_KEY]: translationCache });
+}
+
+function saveDictionaryCache(key, value) {
+  dictionaryCache[key] = value;
+  chrome.storage.local.set({ [DICTIONARY_CACHE_KEY]: dictionaryCache });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  loadCaches();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  loadCaches();
+});
 
 async function translateText(text) {
   if (!text || text.trim().length === 0) {
-    return '';
+    return { translation: '', error: null };
+  }
+
+  if (!cacheLoaded) {
+    await loadCaches();
   }
 
   const cacheKey = text.trim();
-  if (TRANSLATION_CACHE.has(cacheKey)) {
-    return TRANSLATION_CACHE.get(cacheKey);
+  if (translationCache.hasOwnProperty(cacheKey)) {
+    return { translation: translationCache[cacheKey], fromCache: true, error: null };
   }
 
   const now = Date.now();
@@ -46,8 +87,8 @@ async function translateText(text) {
         const translatedText = data[0][0][0];
 
         if (translatedText) {
-          TRANSLATION_CACHE.set(cacheKey, translatedText);
-          return translatedText;
+          saveTranslationCache(cacheKey, translatedText);
+          return { translation: translatedText, fromCache: false, error: null };
         }
       }
     } catch (error) {
@@ -56,7 +97,7 @@ async function translateText(text) {
     }
   }
 
-  return '翻译失败';
+  return { translation: '', error: 'translation_failed' };
 }
 
 function getYoudaoTTSUrl(word) {
@@ -70,11 +111,15 @@ function getGoogleTTSUrl(text, lang = 'en') {
 async function lookupWord(word) {
   const cleanWord = word.trim().toLowerCase().replace(/[^a-zA-Z]/g, '');
   if (!cleanWord || cleanWord.length < 2) {
-    return null;
+    return { result: null, error: null };
   }
 
-  if (DICTIONARY_CACHE.has(cleanWord)) {
-    return DICTIONARY_CACHE.get(cleanWord);
+  if (!cacheLoaded) {
+    await loadCaches();
+  }
+
+  if (dictionaryCache.hasOwnProperty(cleanWord)) {
+    return { result: dictionaryCache[cleanWord], fromCache: true, error: null };
   }
 
   try {
@@ -86,13 +131,13 @@ async function lookupWord(word) {
     });
 
     if (!response.ok) {
-      return null;
+      return { result: null, error: 'word_not_found' };
     }
 
     const data = await response.json();
 
     if (!Array.isArray(data) || data.length === 0) {
-      return null;
+      return { result: null, error: 'word_not_found' };
     }
 
     const entry = data[0];
@@ -120,11 +165,11 @@ async function lookupWord(word) {
       }
     }
 
-    DICTIONARY_CACHE.set(cleanWord, result);
-    return result;
+    saveDictionaryCache(cleanWord, result);
+    return { result: result, fromCache: false, error: null };
   } catch (error) {
     console.error('Dictionary lookup error:', error);
-    return null;
+    return { result: null, error: 'network_error' };
   }
 }
 
@@ -187,15 +232,16 @@ function isWordInVocabulary(word) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'translate') {
-    translateText(request.text).then(translation => {
-      sendResponse({ translation: translation });
+    translateText(request.text).then(result => {
+      sendResponse(result);
     });
     return true;
   }
 
   if (request.action === 'translateBatch') {
     Promise.all(request.texts.map(text => translateText(text)))
-      .then(translations => {
+      .then(results => {
+        const translations = results.map(r => r.translation);
         sendResponse({ translations: translations });
       });
     return true;
@@ -203,7 +249,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'lookupWord') {
     lookupWord(request.word).then(result => {
-      sendResponse({ result: result });
+      sendResponse(result);
     });
     return true;
   }
