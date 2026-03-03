@@ -1,7 +1,132 @@
 (function () {
   const PROCESSED_ATTR = 'data-translation-processed';
   const TRANSLATION_ATTR = 'data-chinese-translation';
+  const EXPORT_BUTTON_ATTR = 'data-export-btn-added';
   let isEnabled = true;
+
+  const AUTHOR_SELECTOR = '.introduce_item.introduce_author';
+  const TITLE_SELECTOR = '.introduce_title';
+  const PARAGRAPH_SELECTOR = '.paragraph_li .paragraph';
+
+  function getArticleTitle() {
+    const titleEl = document.querySelector(TITLE_SELECTOR);
+    return titleEl ? titleEl.textContent.trim() : 'article';
+  }
+
+  function getParagraphsData() {
+    const paragraphs = document.querySelectorAll(PARAGRAPH_SELECTOR);
+    const data = [];
+    
+    paragraphs.forEach(p => {
+      const english = p.textContent.trim().replace(/\s+/g, ' ').trim();
+      const parent = p.parentElement;
+      const chineseEl = parent ? parent.querySelector('.chinese-translation') : null;
+      const chinese = chineseEl ? chineseEl.textContent.trim() : '';
+      
+      if (english && english.length > 1) {
+        data.push({ english, chinese });
+      }
+    });
+    
+    return data;
+  }
+
+  async function copyToClipboard() {
+    const btn = document.querySelector('.ll-export-pdf-btn');
+    if (btn) {
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 复制中...';
+      btn.disabled = true;
+    }
+
+    try {
+      const title = getArticleTitle();
+      const paragraphs = getParagraphsData();
+      
+      if (paragraphs.length === 0) {
+        const btn = document.querySelector('.ll-export-pdf-btn');
+        if (btn) {
+          btn.innerHTML = '<i class="fas fa-copy"></i> 一键复制';
+          btn.disabled = false;
+        }
+        alert('未找到文章段落');
+        return;
+      }
+
+      let content = title + '\n\n';
+      
+      for (const para of paragraphs) {
+        content += para.english + '\n';
+        if (para.chinese) {
+          content += para.chinese + '\n';
+        }
+        content += '\n';
+      }
+
+      await navigator.clipboard.writeText(content);
+      
+      const btn = document.querySelector('.ll-export-pdf-btn');
+      if (btn) {
+        btn.innerHTML = '<i class="fas fa-check"></i> 已复制!';
+        btn.disabled = false;
+        setTimeout(() => {
+          if (btn) {
+            btn.innerHTML = '<i class="fas fa-copy"></i> 一键复制';
+          }
+        }, 2000);
+      }
+      
+    } catch (error) {
+      console.error('Copy to clipboard error:', error);
+      alert('复制失败，请重试');
+      
+      const btn = document.querySelector('.ll-export-pdf-btn');
+      if (btn) {
+        btn.innerHTML = '<i class="fas fa-copy"></i> 一键复制';
+        btn.disabled = false;
+      }
+    }
+  }
+
+  function ensureFontAwesome() {
+    if (!document.querySelector('link[href*="font-awesome"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+      document.head.appendChild(link);
+    }
+  }
+
+  function createExportButton() {
+    const authorEl = document.querySelector(AUTHOR_SELECTOR);
+    if (!authorEl || authorEl.hasAttribute(EXPORT_BUTTON_ATTR)) {
+      return;
+    }
+    
+    ensureFontAwesome();
+    
+    authorEl.setAttribute(EXPORT_BUTTON_ATTR, 'true');
+    
+    const btn = document.createElement('button');
+    btn.className = 'll-export-pdf-btn';
+    btn.innerHTML = '<i class="fas fa-copy"></i> 一键复制';
+    btn.addEventListener('click', copyToClipboard);
+    
+    authorEl.parentElement.insertBefore(btn, authorEl.nextSibling);
+  }
+
+  function initExportFeature() {
+    createExportButton();
+    
+    const observer = new MutationObserver(() => {
+      createExportButton();
+    });
+    
+    const container = document.querySelector('.paragraph_li')?.parentElement || document.body;
+    observer.observe(container, {
+      childList: true,
+      subtree: true
+    });
+  }
 
   async function translateParagraph(paragraphElement) {
     if (!isEnabled) return;
@@ -107,6 +232,7 @@
       processAllParagraphs();
       setupMutationObserver();
       setupWordClickListener();
+      initExportFeature();
     }, 1000);
   }
 

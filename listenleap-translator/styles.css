@@ -604,3 +604,27 @@
   padding-top: 16px;
   border-top: 1px solid #eee;
 }
+
+.ll-export-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #3478F6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 10px 0;
+}
+
+.ll-export-pdf-btn:hover {
+  background: #2865e0;
+}
+
+.ll-export-pdf-btn:disabled {
+  background: #a0c4ff;
+  cursor: not-allowed;
+}
