@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const enabled = e.target.checked;
     chrome.storage.local.set({ translationEnabled: enabled }, () => {
       updateStatus(enabled);
-      
+
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]) {
           chrome.tabs.reload(tabs[0].id);
