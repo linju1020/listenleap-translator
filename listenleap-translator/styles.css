@@ -323,6 +323,10 @@
   cursor: pointer;
 }
 
+.ll-vocab-chinese-label span {
+  user-select: none;
+}
+
 .ll-vocab-play-all {
   display: flex;
   align-items: center;

@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.listenleap.com/*"],
-      "js": ["content.js"],
+      "js": ["Translator.js", "Drawer.js", "VocabManager.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
