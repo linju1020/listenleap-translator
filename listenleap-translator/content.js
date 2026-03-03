@@ -192,48 +192,247 @@
     }
   }
 
+  let isPlayingAll = false;
+  let playAllIndex = 0;
+  let vocabData = [];
+
   async function loadVocabulary() {
     const listEl = document.getElementById('ll-vocab-list');
     if (!listEl) return;
 
     const response = await chrome.runtime.sendMessage({ action: 'getVocabulary' });
-    const vocab = response.vocabulary || [];
+    vocabData = response.vocabulary || [];
 
-    if (vocab.length === 0) {
+    if (vocabData.length === 0) {
       listEl.innerHTML = '<div class="ll-vocab-empty">暂无生词</div>';
       return;
     }
-    console.log('vocab', vocab);
-    listEl.innerHTML = vocab.map((item, index) => `
-      <div class="ll-vocab-item" data-word="${item.word}">
+
+    const vocabControls = `
+      <div class="ll-vocab-controls" onclick="event.stopPropagation()">
+        <label class="ll-vocab-chinese-label">
+          <input type="checkbox" id="ll-play-chinese" onclick="event.stopPropagation()">
+          <span>朗读中文</span>
+        </label>
+        <button class="ll-vocab-play-all" id="ll-play-all">
+          <i class="fas fa-play"></i>
+          <span>循环播放</span>
+        </button>
+      </div>
+    `;
+
+    listEl.innerHTML = vocabControls + '<div class="ll-vocab-items">' + vocabData.map((item, index) => `
+      <div class="ll-vocab-item" draggable="true" data-index="${index}" data-word="${item.word}">
+        <div class="ll-vocab-drag-handle">
+          <i class="fas fa-grip-lines"></i>
+        </div>
         <div class="ll-vocab-index">${index + 1}</div>
         <div class="ll-vocab-main">
           <div class="ll-vocab-word-row">
             <span class="ll-vocab-word">${item.word}</span>
             <span class="ll-vocab-phonetic">${item.phonetic || ''}</span>
-            <i class="fas fa-volume-up ll-vocab-audio" data-audio="${item.audio || ''}"></i>
+            <i class="fas fa-volume-up ll-vocab-audio" data-audio="${item.audio || ''}" data-chinese="${item.wordChinese || item.chineseDef || ''}"></i>
           </div>
-          <div class="ll-vocab-def">${item.wordChinese || ''}</div>
+          <div class="ll-vocab-def">${item.wordChinese || item.chineseDef || ''}</div>
         </div>
         <i class="fas fa-trash-alt ll-vocab-delete" data-word="${item.word}"></i>
       </div>
-    `).join('');
+    `).join('') + '</div>';
 
-    listEl.querySelectorAll('.ll-vocab-item').forEach(item => {
+    setupVocabControls();
+    setupVocabDragDrop();
+  }
+
+  function setupVocabControls() {
+    // 阻止控制栏的点击事件冒泡
+    const controls = document.querySelector('.ll-vocab-controls');
+    if (controls) {
+      controls.addEventListener('click', function (e) {
+        e.stopPropagation();
+      });
+    }
+
+    const playAllBtn = document.getElementById('ll-play-all');
+    if (playAllBtn) {
+      playAllBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        togglePlayAll(e);
+      });
+    }
+
+    // 生词本喇叭点击事件
+    const audioBtns = document.querySelectorAll('.ll-vocab-audio');
+    audioBtns.forEach(btn => {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (this.classList.contains('playing')) return;
+
+        this.classList.add('playing');
+
+        const audioUrl = this.dataset.audio;
+        const audio = new Audio(audioUrl);
+
+        audio.onended = () => {
+          this.classList.remove('playing');
+        };
+
+        audio.onerror = () => {
+          this.classList.remove('playing');
+        };
+
+        audio.play().catch(() => {
+          this.classList.remove('playing');
+        });
+      });
+    });
+
+    // 生词本项目点击事件
+    const vocabItems = document.querySelectorAll('.ll-vocab-item');
+    vocabItems.forEach(item => {
       item.addEventListener('click', async (e) => {
         if (e.target.classList.contains('ll-vocab-delete')) {
           const word = e.target.dataset.word;
           await chrome.runtime.sendMessage({ action: 'removeFromVocabulary', word: word });
           loadVocabulary();
-        } else if (e.target.classList.contains('ll-vocab-audio')) {
-          const audioUrl = e.target.dataset.audio;
-          if (audioUrl) {
-            new Audio(audioUrl).play();
-          }
+        } else if (e.target.closest('.ll-vocab-drag-handle')) {
+          // 拖动手柄，不做处理
         } else {
           const word = item.dataset.word;
           currentWord = word;
           await lookupAndShowWord(word);
+        }
+      });
+    });
+  }
+
+  async function togglePlayAll(e) {
+    if (e) e.stopPropagation();
+
+    const playAllBtn = document.getElementById('ll-play-all');
+    const chineseCheckbox = document.getElementById('ll-play-chinese');
+    const playChinese = chineseCheckbox ? chineseCheckbox.checked : false;
+
+    if (isPlayingAll) {
+      isPlayingAll = false;
+      playAllBtn.classList.remove('playing');
+      playAllBtn.innerHTML = '<i class="fas fa-play"></i><span>循环播放</span>';
+      return;
+    }
+
+    if (vocabData.length === 0) return;
+
+    isPlayingAll = true;
+    playAllBtn.classList.add('playing');
+    playAllBtn.innerHTML = '<i class="fas fa-stop"></i><span>停止播放</span>';
+
+    playAllIndex = 0;
+    await playNextWord(playChinese);
+  }
+
+  async function playNextWord(playChinese) {
+    if (!isPlayingAll || playAllIndex >= vocabData.length) {
+      playAllIndex = 0;
+      if (isPlayingAll) {
+        await playNextWord(playChinese);
+      }
+      return;
+    }
+
+    const item = vocabData[playAllIndex];
+    const currentItemEl = document.querySelector(`.ll-vocab-item[data-index="${playAllIndex}"]`);
+
+    if (currentItemEl) {
+      currentItemEl.classList.add('playing');
+    }
+
+    // 播放英文发音
+    if (item.audio) {
+      await new Promise((resolve) => {
+        const audio = new Audio(item.audio);
+        audio.onended = resolve;
+        audio.onerror = resolve;
+        audio.play().catch(resolve);
+      });
+    }
+
+    // 播放中文发音
+    if (playChinese) {
+      const chineseText = item.wordChinese || item.chineseDef || '';
+      if (chineseText) {
+        await new Promise((resolve) => {
+          const utterance = new SpeechSynthesisUtterance(chineseText);
+          utterance.lang = 'zh-CN';
+          utterance.rate = 0.9;
+          utterance.onend = resolve;
+          utterance.onerror = resolve;
+          speechSynthesis.speak(utterance);
+        });
+      }
+    }
+
+    if (currentItemEl) {
+      currentItemEl.classList.remove('playing');
+    }
+
+    playAllIndex++;
+
+    if (isPlayingAll) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await playNextWord(playChinese);
+    }
+  }
+
+  function setupVocabDragDrop() {
+    const items = document.querySelectorAll('.ll-vocab-item');
+    let draggedItem = null;
+
+    items.forEach(item => {
+      item.addEventListener('dragstart', function (e) {
+        draggedItem = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      item.addEventListener('dragend', function () {
+        this.classList.remove('dragging');
+        draggedItem = null;
+      });
+
+      item.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      item.addEventListener('dragenter', function () {
+        if (this !== draggedItem) {
+          this.classList.add('drag-over');
+        }
+      });
+
+      item.addEventListener('dragleave', function () {
+        this.classList.remove('drag-over');
+      });
+
+      item.addEventListener('drop', async function (e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+
+        if (draggedItem && this !== draggedItem) {
+          const fromIndex = parseInt(draggedItem.dataset.index);
+          const toIndex = parseInt(this.dataset.index);
+
+          // 交换位置
+          const [movedItem] = vocabData.splice(fromIndex, 1);
+          vocabData.splice(toIndex, 0, movedItem);
+
+          // 保存新顺序
+          await chrome.runtime.sendMessage({
+            action: 'updateVocabularyOrder',
+            vocabulary: vocabData
+          });
+
+          // 重新渲染
+          loadVocabulary();
         }
       });
     });
@@ -335,12 +534,17 @@
           isWordSaved = false;
           saveBtn.classList.remove('ll-saved');
         } else {
-          // 使用已经翻译好的简洁中文翻译
+          // 先翻译获取中文翻译
+          const translateResponse = await chrome.runtime.sendMessage({
+            action: 'translate',
+            text: data.word
+          });
+
           const wordDataWithChinese = {
             ...data,
-            chineseDef: data.wordChinese || ''
+            wordChinese: translateResponse.translation || '',
+            chineseDef: translateResponse.translation || ''
           };
-          console.log('wordDataWithChinese', wordDataWithChinese);
 
           await chrome.runtime.sendMessage({ action: 'addToVocabulary', wordData: wordDataWithChinese });
           isWordSaved = true;
@@ -351,22 +555,22 @@
 
     const audioPlayBtn = document.getElementById('ll-audio-play');
     if (audioPlayBtn && data.audio) {
-      audioPlayBtn.addEventListener('click', function() {
+      audioPlayBtn.addEventListener('click', function () {
         if (this.classList.contains('playing')) return;
-        
+
         this.classList.add('playing');
         this.classList.add('fa-pulse');
-        
+
         const audio = new Audio(data.audio);
-        
+
         audio.onended = () => {
           this.classList.remove('playing', 'fa-pulse');
         };
-        
+
         audio.onerror = () => {
           this.classList.remove('playing', 'fa-pulse');
         };
-        
+
         audio.play().catch(err => {
           console.error('播放失败:', err);
           this.classList.remove('playing', 'fa-pulse');
@@ -382,11 +586,11 @@
     // 加载单词中文翻译
     const englishEl = document.getElementById('ll-word-english');
     const chineseEl = document.getElementById('ll-word-chinese');
-    
+
     if (englishEl && chineseEl) {
       englishEl.style.display = 'none';
       chineseEl.style.display = 'block';
-      
+
       try {
         const response = await chrome.runtime.sendMessage({
           action: 'translate',
@@ -408,7 +612,7 @@
         const mIdx = data.meanings.indexOf(meaning);
         const idx = meaning.definitions.indexOf(def);
         const defId = `def-${mIdx}-${idx}`;
-        
+
         // 加载释义中文
         try {
           const defResponse = await chrome.runtime.sendMessage({
@@ -442,7 +646,7 @@
               }
             }
           } catch (error) { }
-          
+
           // 添加延迟
           await new Promise(resolve => setTimeout(resolve, 300));
         }

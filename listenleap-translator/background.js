@@ -63,6 +63,10 @@ function getYoudaoTTSUrl(word) {
   return `http://dict.youdao.com/dictvoice?type=1&audio=${encodeURIComponent(word)}`;
 }
 
+function getGoogleTTSUrl(text, lang = 'en') {
+  return `https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=${lang}&client=gtx&q=${encodeURIComponent(text)}`;
+}
+
 async function lookupWord(word) {
   const cleanWord = word.trim().toLowerCase().replace(/[^a-zA-Z]/g, '');
   if (!cleanWord || cleanWord.length < 2) {
@@ -228,6 +232,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkInVocabulary') {
     isWordInVocabulary(request.word).then(exists => {
       sendResponse({ exists: exists });
+    });
+    return true;
+  }
+
+  if (request.action === 'updateVocabularyOrder') {
+    chrome.storage.local.set({ vocabulary: request.vocabulary }, () => {
+      sendResponse({ success: true });
     });
     return true;
   }
