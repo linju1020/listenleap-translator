@@ -94,36 +94,19 @@ async function lookupWord(word) {
     const entry = data[0];
     const youdaoTtsUrl = getYoudaoTTSUrl(cleanWord);
 
-    // 先翻译单词本身获取简洁的中文翻译
-    const wordChinese = await translateText(cleanWord);
-
     const result = {
       word: entry.word,
       phonetic: entry.phonetic || (entry.phonetics?.find(p => p.text)?.text) || '',
       audio: youdaoTtsUrl,
-      wordChinese: wordChinese || '',
       meanings: []
     };
 
     for (const meaning of entry.meanings || []) {
       const partOfSpeech = meaning.partOfSpeech;
-      const definitions = [];
-
-      for (const def of meaning.definitions?.slice(0, 3) || []) {
-        const defObj = {
-          definition: def.definition,
-          example: def.example || ''
-        };
-
-        if (def.definition) {
-          defObj.chineseDefinition = await translateText(def.definition);
-        }
-        if (def.example) {
-          defObj.chineseExample = await translateText(def.example);
-        }
-
-        definitions.push(defObj);
-      }
+      const definitions = meaning.definitions?.slice(0, 3).map(def => ({
+        definition: def.definition,
+        example: def.example || ''
+      })) || [];
 
       if (definitions.length > 0) {
         result.meanings.push({
