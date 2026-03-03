@@ -21,9 +21,8 @@
 /* Drawer Styles */
 .ll-drawer {
   position: fixed;
-  top: 50%;
+  top: 100px;
   right: -310px;
-  transform: translateY(-50%);
   width: 360px;
   max-height: 60vh;
   background: #fff;
@@ -43,6 +42,7 @@
 .ll-drawer-tabs {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   background: #f5f5f5;
   padding: 15px 8px;
   gap: 15px;
@@ -76,6 +76,24 @@
   color: #3478F6;
   background: #fff;
   box-shadow: 0 2px 8px rgba(52, 120, 246, 0.15);
+}
+
+.ll-drawer-about {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  cursor: pointer;
+  color: #999;
+  font-size: 16px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  margin-top: auto;
+}
+
+.ll-drawer-about:hover {
+  background: #e8e8e8;
+  color: #3478F6;
 }
 
 .ll-drawer-content {
@@ -385,4 +403,55 @@
 
 .ll-drawer-content::-webkit-scrollbar-thumb:hover {
   background: #ccc;
+}
+
+/* About Page */
+.ll-about-content {
+  padding: 0;
+}
+
+.ll-about-inner {
+  padding: 10px;
+}
+
+.ll-about-inner h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.ll-about-inner > p {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.ll-about-section {
+  margin-bottom: 16px;
+}
+
+.ll-about-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #3478F6;
+}
+
+.ll-about-section ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.8;
+}
+
+.ll-about-section li {
+  margin-bottom: 4px;
+}
+
+.ll-about-version {
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
 }

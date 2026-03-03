@@ -94,6 +94,9 @@
           <span>生</span>
           <span>词</span>
         </div>
+        <div class="ll-drawer-about" id="ll-drawer-about">
+          <i class="fas fa-info-circle"></i>
+        </div>
       </div>
       <div class="ll-drawer-content">
         <div class="ll-dict-content" id="ll-dict-content">
@@ -104,6 +107,31 @@
         </div>
         <div class="ll-vocab-content" id="ll-vocab-content" style="display: none;">
           <div class="ll-vocab-list" id="ll-vocab-list"></div>
+        </div>
+        <div class="ll-about-content" id="ll-about-content" style="display: none;">
+          <div class="ll-about-inner">
+            <h3>关于 ListenLeap 翻译助手</h3>
+            <p>一款为英语学习者打造的Chrome扩展插件</p>
+            <div class="ll-about-section">
+              <h4>使用的API服务</h4>
+              <ul>
+                <li><strong>词典API:</strong> Free Dictionary API (dictionaryapi.dev)</li>
+                <li><strong>翻译API:</strong> Google Translate (translate.googleapis.com)</li>
+                <li><strong>发音API:</strong> 有道词典 (dict.youdao.com)</li>
+              </ul>
+            </div>
+            <div class="ll-about-section">
+              <h4>感谢</h4>
+              <p>感谢以下开源项目和API服务：</p>
+              <ul>
+                <li>Free Dictionary API - 提供免费的英语词典数据</li>
+                <li>Google Translate - 提供免费翻译服务</li>
+                <li>有道词典 - 提供清晰的英文发音</li>
+                <li>Font Awesome - 提供优质图标</li>
+              </ul>
+            </div>
+            <div class="ll-about-version">版本 1.0</div>
+          </div>
         </div>
       </div>
       <div class="ll-drawer-close" id="ll-drawer-close">
@@ -117,6 +145,10 @@
 
     div.querySelectorAll('.ll-drawer-tab').forEach(tab => {
       tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+
+    div.querySelector('#ll-drawer-about').addEventListener('click', () => {
+      switchTab('about');
     });
 
     document.addEventListener('click', (e) => {
@@ -141,15 +173,22 @@
     drawer.querySelectorAll('.ll-drawer-tab').forEach(tab => {
       tab.classList.remove('ll-tab-active');
     });
-    drawer.querySelector(`[data-tab="${tabName}"]`).classList.add('ll-tab-active');
+    if (tabName !== 'about') {
+      drawer.querySelector(`[data-tab="${tabName}"]`).classList.add('ll-tab-active');
+    }
+
+    // 隐藏所有内容
+    drawer.querySelector('.ll-dict-content').style.display = 'none';
+    drawer.querySelector('.ll-vocab-content').style.display = 'none';
+    drawer.querySelector('.ll-about-content').style.display = 'none';
 
     if (tabName === 'dict') {
       drawer.querySelector('.ll-dict-content').style.display = 'block';
-      drawer.querySelector('.ll-vocab-content').style.display = 'none';
-    } else {
-      drawer.querySelector('.ll-dict-content').style.display = 'none';
+    } else if (tabName === 'vocab') {
       drawer.querySelector('.ll-vocab-content').style.display = 'block';
       loadVocabulary();
+    } else if (tabName === 'about') {
+      drawer.querySelector('.ll-about-content').style.display = 'block';
     }
   }
 
