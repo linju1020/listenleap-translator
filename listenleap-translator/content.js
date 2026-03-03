@@ -152,6 +152,9 @@
     });
 
     document.addEventListener('click', (e) => {
+      // 点击时停止循环播放
+      stopPlayAll();
+      
       if (drawerElement && !drawerElement.contains(e.target)) {
         const bTag = e.target.closest('.paragraph b');
         if (!bTag) {
@@ -166,6 +169,9 @@
   function switchTab(tabName) {
     const drawer = document.getElementById('ll-drawer');
     if (!drawer) return;
+
+    // 切换Tab时停止循环播放
+    stopPlayAll();
 
     // 确保Drawer是打开的
     drawer.classList.add('ll-drawer-open');
@@ -194,7 +200,21 @@
 
   let isPlayingAll = false;
   let playAllIndex = 0;
+  let playCount = 0;
+  const MAX_PLAY_COUNT = 50;
   let vocabData = [];
+
+  function stopPlayAll() {
+    if (isPlayingAll) {
+      isPlayingAll = false;
+      playCount = 0;
+      const playAllBtn = document.getElementById('ll-play-all');
+      if (playAllBtn) {
+        playAllBtn.classList.remove('playing');
+        playAllBtn.innerHTML = '<i class="fas fa-play"></i><span>循环播放</span>';
+      }
+    }
+  }
 
   async function loadVocabulary() {
     const listEl = document.getElementById('ll-vocab-list');
@@ -313,15 +333,14 @@
     const playChinese = chineseCheckbox ? chineseCheckbox.checked : false;
 
     if (isPlayingAll) {
-      isPlayingAll = false;
-      playAllBtn.classList.remove('playing');
-      playAllBtn.innerHTML = '<i class="fas fa-play"></i><span>循环播放</span>';
+      stopPlayAll();
       return;
     }
 
     if (vocabData.length === 0) return;
 
     isPlayingAll = true;
+    playCount = 0;
     playAllBtn.classList.add('playing');
     playAllBtn.innerHTML = '<i class="fas fa-stop"></i><span>停止播放</span>';
 
@@ -330,7 +349,14 @@
   }
 
   async function playNextWord(playChinese) {
+    // 检查是否达到最大播放次数
+    if (playCount >= MAX_PLAY_COUNT) {
+      stopPlayAll();
+      return;
+    }
+
     if (!isPlayingAll || playAllIndex >= vocabData.length) {
+      playCount++;
       playAllIndex = 0;
       if (isPlayingAll) {
         await playNextWord(playChinese);
