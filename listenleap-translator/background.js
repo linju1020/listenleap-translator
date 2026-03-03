@@ -164,6 +164,7 @@ function addToVocabulary(wordData) {
         phonetic: wordData.phonetic || '',
         partOfSpeech: wordData.meanings?.[0]?.partOfSpeech || '',
         definition: wordData.meanings?.[0]?.definitions?.[0]?.definition || '',
+        chineseDef: wordData.meanings?.[0]?.definitions?.[0]?.chineseDefinition || '',
         example: wordData.meanings?.[0]?.definitions?.[0]?.example || '',
         audio: wordData.audio || '',
         dateAdded: new Date().toISOString()

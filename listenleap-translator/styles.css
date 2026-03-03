@@ -258,10 +258,13 @@
 .ll-vocab-item {
   background: #f9f9f9;
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px 12px;
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .ll-vocab-item:hover {
@@ -269,30 +272,56 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.ll-vocab-index {
+  font-size: 12px;
+  color: #999;
+  min-width: 16px;
+  padding-top: 2px;
+}
+
+.ll-vocab-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ll-vocab-word-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .ll-vocab-word {
   font-size: 16px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 4px;
+}
+
+.ll-vocab-phonetic {
+  font-size: 12px;
+  color: #666;
+}
+
+.ll-vocab-audio {
+  font-size: 14px;
+  color: #3478F6;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.ll-vocab-audio:hover {
+  background: #e8f0fe;
 }
 
 .ll-vocab-def {
   font-size: 13px;
   color: #666;
   line-height: 1.4;
-  padding-right: 30px;
+  margin-top: 4px;
 }
 
-.ll-vocab-actions {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 10px;
-}
-
-.ll-vocab-audio,
 .ll-vocab-delete {
   font-size: 14px;
   color: #999;
@@ -300,11 +329,9 @@
   padding: 4px;
   border-radius: 4px;
   transition: all 0.2s;
-}
-
-.ll-vocab-audio:hover {
-  color: #3478F6;
-  background: #e8f0fe;
+  position: absolute;
+  right: 10px;
+  top: 10px;
 }
 
 .ll-vocab-delete:hover {

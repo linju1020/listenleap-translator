@@ -162,14 +162,18 @@
       return;
     }
 
-    listEl.innerHTML = vocab.map(item => `
+    listEl.innerHTML = vocab.map((item, index) => `
       <div class="ll-vocab-item" data-word="${item.word}">
-        <div class="ll-vocab-word">${item.word}</div>
-        <div class="ll-vocab-def">${item.partOfSpeech ? item.partOfSpeech + '. ' : ''}${item.definition}</div>
-        <div class="ll-vocab-actions">
-          <i class="fas fa-volume-up ll-vocab-audio" data-audio="${item.audio || ''}"></i>
-          <i class="fas fa-trash-alt ll-vocab-delete" data-word="${item.word}"></i>
+        <div class="ll-vocab-index">${index + 1}</div>
+        <div class="ll-vocab-main">
+          <div class="ll-vocab-word-row">
+            <span class="ll-vocab-word">${item.word}</span>
+            <span class="ll-vocab-phonetic">${item.phonetic || ''}</span>
+            <i class="fas fa-volume-up ll-vocab-audio" data-audio="${item.audio || ''}"></i>
+          </div>
+          <div class="ll-vocab-def">${item.chineseDef || ''}</div>
         </div>
+        <i class="fas fa-trash-alt ll-vocab-delete" data-word="${item.word}"></i>
       </div>
     `).join('');
 
