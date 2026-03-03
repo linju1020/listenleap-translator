@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "ListenLeap翻译助手",
+  "version": "1.0",
+  "description": "在ListenLeap网站的英文句子下方显示中文翻译",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.listenleap.com/*",
+    "https://translate.googleapis.com/*",
+    "https://clients5.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.listenleap.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

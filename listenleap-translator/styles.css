@@ -1,0 +1,19 @@
+.chinese-translation {
+  font-size: 18px;
+  color: #428df5;
+  margin-top: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1.5;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  border: 1px dashed #428df5;
+  display: inline-block;
+}
+
+.paragraph_li .chinese-translation {
+  margin-left: 0;
+}
+
+.chinese-translation:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+}
