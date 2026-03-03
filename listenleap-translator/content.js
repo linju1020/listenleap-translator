@@ -351,9 +351,26 @@
 
     const audioPlayBtn = document.getElementById('ll-audio-play');
     if (audioPlayBtn && data.audio) {
-      audioPlayBtn.addEventListener('click', () => {
+      audioPlayBtn.addEventListener('click', function() {
+        if (this.classList.contains('playing')) return;
+        
+        this.classList.add('playing');
+        this.classList.add('fa-pulse');
+        
         const audio = new Audio(data.audio);
-        audio.play().catch(err => console.error('播放失败:', err));
+        
+        audio.onended = () => {
+          this.classList.remove('playing', 'fa-pulse');
+        };
+        
+        audio.onerror = () => {
+          this.classList.remove('playing', 'fa-pulse');
+        };
+        
+        audio.play().catch(err => {
+          console.error('播放失败:', err);
+          this.classList.remove('playing', 'fa-pulse');
+        });
       });
     }
   }
